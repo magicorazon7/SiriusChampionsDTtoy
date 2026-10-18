@@ -14,7 +14,7 @@ class BatterySimulator:
         self.current = 80          # текущий ток, А (начальное значение)
 
     def step(self, dt=1.0):
-        # Генерируем изменение тока
+        # Изменение нагрузки на батарею
         self.current += random.uniform(-0.1, 0.1)
         self.current = max(0.1, min(100, self.current))
 
@@ -29,7 +29,7 @@ class BatterySimulator:
             self.SOC += dSOC
             self.SOC = max(0, min(100, self.SOC))   # ограничиваем
 
-        # Шум
+        # Имитация погрешности измерительных датчиков
         T_noisy = self.T + random.gauss(0, 0.005)
         I_noisy = self.current + random.gauss(0, 0.05)
 
