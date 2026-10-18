@@ -38,9 +38,9 @@ def update_registers():
             3,
             0,
             [
-                int(T * 100),
-                int(I * 10),
-                int(SOC * 10)
+                round(T * 100),
+                round(I * 10),
+                round(SOC * 10)
             ]
         )
         registers = context[0].getValues(3, 0, count=3)
@@ -96,7 +96,7 @@ def create_gui():
         root,
         from_=0.07,
         to=0.15,
-        resolution=0.01,
+        resolution=0.02,
         orient=tk.HORIZONTAL,
         length=350,
         command=change_r_th
