@@ -16,6 +16,7 @@ class BatterySimulator:
     def step(self, dt=1.0):
         # Изменение нагрузки на батарею
         self.current += random.uniform(-0.1, 0.1)
+        # Ограничиваем ток допустимым диапазоном виртуального объекта
         self.current = max(0.1, min(100, self.current))
 
         # Тепловая модель
