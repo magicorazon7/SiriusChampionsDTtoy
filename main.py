@@ -22,6 +22,20 @@ reader = ModbusReader(MODBUS_IP, MODBUS_PORT)
 logger = TelemetryLogger()
 forecast_twin = RepeatTwin(api_key=REPEAT_API_KEY,project_id=REPEAT_PROJECT_ID,interval_sec=HORIZON_SEC)
 
+def save_forecast(state,avg_current,final_temperature,final_soc,time_to_overheat,r_th):
+    forecast = {
+        "timestamp": time.time(),
+        "current_temp": round(state["temperature"], 2),
+        "current_soc": round(state["soc"], 2),
+        "avg_current": round(avg_current, 2),
+        "horizon_sec": HORIZON_SEC,
+        "predicted_temp": round(final_temperature, 2),
+        "predicted_soc": round(final_soc, 2),
+        "time_to_overheat_sec": time_to_overheat,
+        "r_th": round(r_th, 4)
+    }
+    with open("forecast.json", "w", encoding="utf-8") as file:json.dump(forecast, file, indent=4)
+
 def save_telemetry(data, elapsed_time):
     telemetry = {
         "time": round(elapsed_time, 2),
@@ -59,6 +73,12 @@ def collect_telemetry(reader, logger, start_time, stop_event):
 
         stop_event.wait(1)
 
+def find_time_to_overheat(temperature_series, limit):
+    for t_ms, temperature in temperature_series.items():
+        if temperature >= limit:
+            return t_ms / 1000.0
+
+    return -1
 
 if not reader.connect():
     exit()
@@ -95,9 +115,19 @@ try:
                 final_temperature = temperature_result.iloc[-1]
                 final_soc = soc_result.iloc[-1]
 
-                print("\nРезультаты расчета модели:")
-                print(f"Temp in 15 min = {final_temperature} °C")
-                print(f"SOC in 15 min = {final_soc} %")
+                time_to_overheat = find_time_to_overheat(
+                    temperature_result,
+                    OVERHEAT_TEMP
+                )
+
+                save_forecast(
+                    state=state,
+                    avg_current=i_avg,
+                    final_temperature=final_temperature,
+                    final_soc=final_soc,
+                    time_to_overheat=time_to_overheat,
+                    r_th=current_r_th
+                )
 
             last_prediction_time = elapsed_time
 

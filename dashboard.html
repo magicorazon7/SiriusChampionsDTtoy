@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Battery Telemetry Monitor</title>
+    <title>Battery Digital Twin</title>
 
     <style>
         body {
@@ -23,7 +23,7 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
             max-width: 900px;
         }
@@ -70,16 +70,16 @@
 
 <body>
 
-<h1>Battery Telemetry Monitor</h1>
+<h1>Battery Digital Twin</h1>
 
 <div class="subtitle">
-    Мониторинг текущего состояния виртуального аккумулятора
+    Мониторинг текущего состояния и прогноз теплового режима
 </div>
 
 <div class="grid">
 
     <div class="card">
-        <h2>Температура</h2>
+        <h2>Текущая температура</h2>
         <div class="value">
             <span id="currentTemp">--</span>
             <span class="unit">°C</span>
@@ -87,7 +87,31 @@
     </div>
 
     <div class="card">
-        <h2>Ток</h2>
+        <h2>Температура через <span id="horizon">--</span> мин</h2>
+        <div class="value">
+            <span id="predictedTemp">--</span>
+            <span class="unit">°C</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Текущий SOC</h2>
+        <div class="value">
+            <span id="currentSoc">--</span>
+            <span class="unit">%</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Прогноз SOC</h2>
+        <div class="value">
+            <span id="predictedSoc">--</span>
+            <span class="unit">%</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Текущий ток</h2>
         <div class="value">
             <span id="currentCurrent">--</span>
             <span class="unit">A</span>
@@ -95,24 +119,50 @@
     </div>
 
     <div class="card">
-        <h2>SOC</h2>
+        <h2>Средний ток для прогноза</h2>
         <div class="value">
-            <span id="currentSoc">--</span>
-            <span class="unit">%</span>
+            <span id="avgCurrent">--</span>
+            <span class="unit">A</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>До перегрева</h2>
+        <div class="value" id="overheatTime">
+            --
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Тепловое сопротивление модели</h2>
+        <div class="value">
+            <span id="rTh">--</span>
+            <span class="unit">К/Вт</span>
         </div>
     </div>
 
 </div>
 
 <div class="status">
-    <h2>Телеметрия</h2>
+
+    <h2>Состояние прогноза</h2>
 
     <p>
-        Время работы:
+        Время работы стенда:
         <strong><span id="elapsedTime">--</span> с</strong>
     </p>
 
+    <p>
+        Последний прогноз:
+        <strong><span id="timestamp">--</span></strong>
+    </p>
+
+    <p id="predictionStatus">
+        Ожидание первого прогноза...
+    </p>
+
     <p id="error"></p>
+
 </div>
 
 
@@ -120,7 +170,6 @@
 
 async function updateTelemetry() {
     try {
-        // Date.now() не позволяет браузеру использовать старый JSON из кэша
         const response = await fetch(
             "telemetry.json?time=" + Date.now()
         );
@@ -143,18 +192,80 @@ async function updateTelemetry() {
         document.getElementById("elapsedTime").textContent =
             data.time.toFixed(1);
 
+    } catch (error) {
+        console.log("Ошибка телеметрии:", error);
+    }
+}
+
+
+async function updateForecast() {
+    try {
+        const response = await fetch(
+            "forecast.json?time=" + Date.now()
+        );
+
+        if (!response.ok) {
+            throw new Error("forecast.json не найден");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("avgCurrent").textContent =
+            data.avg_current.toFixed(1);
+
+        document.getElementById("predictedTemp").textContent =
+            data.predicted_temp.toFixed(1);
+
+        document.getElementById("predictedSoc").textContent =
+            data.predicted_soc.toFixed(1);
+
+        document.getElementById("horizon").textContent =
+            (data.horizon_sec / 60).toFixed(0);
+
+        document.getElementById("rTh").textContent =
+            data.r_th.toFixed(3);
+
+
+        if (data.time_to_overheat_sec < 0) {
+
+            document.getElementById("overheatTime").textContent =
+                "Не прогнозируется";
+
+            document.getElementById("predictionStatus").textContent =
+                "На заданном горизонте температурное ограничение не достигается.";
+
+        } else {
+
+            const minutes = data.time_to_overheat_sec / 60;
+
+            document.getElementById("overheatTime").textContent =
+                minutes.toFixed(1) + " мин";
+
+            document.getElementById("predictionStatus").textContent =
+                "Прогнозируется достижение температурного ограничения.";
+        }
+
+
+        const date = new Date(data.timestamp * 1000);
+
+        document.getElementById("timestamp").textContent =
+            date.toLocaleTimeString("ru-RU");
+
         document.getElementById("error").textContent = "";
 
     } catch (error) {
+
         document.getElementById("error").textContent =
-            "Нет данных: " + error.message;
+            "Нет прогноза: " + error.message;
     }
 }
 
 
 updateTelemetry();
+updateForecast();
 
 setInterval(updateTelemetry, 1000);
+setInterval(updateForecast, 5000);
 
 </script>
 
