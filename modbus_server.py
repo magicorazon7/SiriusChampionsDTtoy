@@ -43,9 +43,6 @@ def update_registers():
                 round(SOC * 10)
             ]
         )
-        registers = context[0].getValues(3, 0, count=3)
-        # print("Raw registers(T,I,SOC): ", registers)
-        # print("Corrected registers(T,I,SOC): ",registers[0]/100," ", registers[1]/10," ",registers[2]/10," ")
 
         time.sleep(1)
 

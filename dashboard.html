@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Battery Telemetry Monitor</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f5f7;
+            margin: 0;
+            padding: 40px;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #667;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #555;
+        }
+
+        .value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .unit {
+            font-size: 16px;
+            font-weight: normal;
+            color: #777;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 20px;
+            max-width: 860px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        #error {
+            color: #b00020;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Battery Telemetry Monitor</h1>
+
+<div class="subtitle">
+    Мониторинг текущего состояния виртуального аккумулятора
+</div>
+
+<div class="grid">
+
+    <div class="card">
+        <h2>Температура</h2>
+        <div class="value">
+            <span id="currentTemp">--</span>
+            <span class="unit">°C</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Ток</h2>
+        <div class="value">
+            <span id="currentCurrent">--</span>
+            <span class="unit">A</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SOC</h2>
+        <div class="value">
+            <span id="currentSoc">--</span>
+            <span class="unit">%</span>
+        </div>
+    </div>
+
+</div>
+
+<div class="status">
+    <h2>Телеметрия</h2>
+
+    <p>
+        Время работы:
+        <strong><span id="elapsedTime">--</span> с</strong>
+    </p>
+
+    <p id="error"></p>
+</div>
+
+
+<script>
+
+async function updateTelemetry() {
+    try {
+        // Date.now() не позволяет браузеру использовать старый JSON из кэша
+        const response = await fetch(
+            "telemetry.json?time=" + Date.now()
+        );
+
+        if (!response.ok) {
+            throw new Error("telemetry.json не найден");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("currentTemp").textContent =
+            data.temperature.toFixed(1);
+
+        document.getElementById("currentCurrent").textContent =
+            data.current.toFixed(1);
+
+        document.getElementById("currentSoc").textContent =
+            data.soc.toFixed(1);
+
+        document.getElementById("elapsedTime").textContent =
+            data.time.toFixed(1);
+
+        document.getElementById("error").textContent = "";
+
+    } catch (error) {
+        document.getElementById("error").textContent =
+            "Нет данных: " + error.message;
+    }
+}
+
+
+updateTelemetry();
+
+setInterval(updateTelemetry, 1000);
+
+</script>
+
+</body>
+</html>
