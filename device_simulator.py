@@ -17,7 +17,7 @@ class BatterySimulator:
         # Изменение нагрузки на батарею
         self.current += random.uniform(-0.1, 0.1)
         # Ограничиваем ток допустимым диапазоном виртуального объекта
-        self.current = max(0.1, min(100, self.current))
+        self.current = max(75.0, min(85.0, self.current))
 
         # Тепловая модель
         P_heat = self.current**2 * self.R_int
