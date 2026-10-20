@@ -19,14 +19,17 @@ CALIBRATION_INTERVAL = 360
 
 MODEL_R_TH_INITIAL = 0.11
 OVERHEAT_TEMP = 42.0
+R_TH_CANDIDATES = [0.07, 0.09, 0.11, 0.13, 0.15, 0.17, 0.19]
+
 REPEAT_API_KEY = "ваш апи ключ"
 REPEAT_PROJECT_ID = "айди вашего проекта"
+
 
 reader = ModbusReader(MODBUS_IP, MODBUS_PORT)
 logger = TelemetryLogger()
 forecast_twin = RepeatTwin(api_key=REPEAT_API_KEY,project_id=REPEAT_PROJECT_ID,interval_sec=HORIZON_SEC)
 calibration_twin = RepeatTwin(api_key=REPEAT_API_KEY,project_id=REPEAT_PROJECT_ID,interval_sec=CALIBRATION_WINDOW)
-calibrator = Calibrator(twin=calibration_twin)
+calibrator = Calibrator(twin=calibration_twin,candidates=R_TH_CANDIDATES)
 
 def save_forecast(state,avg_current,final_temperature,final_soc,time_to_overheat,r_th):
     forecast = {
@@ -41,6 +44,17 @@ def save_forecast(state,avg_current,final_temperature,final_soc,time_to_overheat
         "r_th": round(r_th, 4)
     }
     with open("forecast.json", "w", encoding="utf-8") as file:json.dump(forecast, file, indent=4)
+
+def save_calibration(previous_r_th, new_r_th, error):
+    calibration = {
+        "timestamp": time.time(),
+        "previous_r_th": round(previous_r_th, 3),
+        "new_r_th": round(new_r_th, 3),
+        "error": round(error, 5)
+    }
+
+    with open("calibration.json", "w", encoding="utf-8") as file:
+        json.dump(calibration, file, indent=4)
 
 def save_telemetry(data, elapsed_time):
     telemetry = {
@@ -111,11 +125,16 @@ try:
         if elapsed_time - last_calibration_time >= CALIBRATION_INTERVAL:
             history = logger.last_seconds(CALIBRATION_WINDOW)
 
-            if history:
-                history_duration = history[-1]["timestamp"] - history[0]["timestamp"]
+            calibrated_r_th, calibration_error = calibrator.calibrate(history)
 
-                if history_duration >= CALIBRATION_WINDOW - 5:
-                    calibrator.calculate_mismatch(history, current_r_th)
+            previous_r_th = current_r_th
+            current_r_th = calibrated_r_th
+
+            save_calibration(
+                previous_r_th=previous_r_th,
+                new_r_th=current_r_th,
+                error=calibration_error
+            )
 
             last_calibration_time = elapsed_time
 

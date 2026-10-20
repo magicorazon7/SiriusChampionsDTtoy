@@ -73,8 +73,9 @@
 <h1>Battery Digital Twin</h1>
 
 <div class="subtitle">
-    Мониторинг текущего состояния и прогноз теплового режима
+    Мониторинг, прогнозирование и оценка параметров модели
 </div>
+
 
 <div class="grid">
 
@@ -94,6 +95,7 @@
         </div>
     </div>
 
+
     <div class="card">
         <h2>Текущий SOC</h2>
         <div class="value">
@@ -109,6 +111,7 @@
             <span class="unit">%</span>
         </div>
     </div>
+
 
     <div class="card">
         <h2>Текущий ток</h2>
@@ -126,6 +129,7 @@
         </div>
     </div>
 
+
     <div class="card">
         <h2>До перегрева</h2>
         <div class="value" id="overheatTime">
@@ -134,7 +138,7 @@
     </div>
 
     <div class="card">
-        <h2>Тепловое сопротивление модели</h2>
+        <h2>Текущее R_th модели</h2>
         <div class="value">
             <span id="rTh">--</span>
             <span class="unit">К/Вт</span>
@@ -143,18 +147,54 @@
 
 </div>
 
+
 <div class="status">
 
-    <h2>Состояние прогноза</h2>
+    <h2>Результат калибровки</h2>
+
+    <p>
+        Последнее изменение теплового сопротивления:
+        <strong>
+            <span id="previousRTh">--</span>
+            →
+            <span id="newRTh">--</span>
+            К/Вт
+        </strong>
+    </p>
+
+    <p>
+        Ошибка:
+        <strong>
+            <span id="calibrationError">--</span> °C
+        </strong>
+    </p>
+
+    <p>
+        Последняя калибровка:
+        <strong>
+            <span id="calibrationTimestamp">--</span>
+        </strong>
+    </p>
+
+</div>
+
+
+<div class="status">
+
+    <h2>Состояние цифрового двойника</h2>
 
     <p>
         Время работы стенда:
-        <strong><span id="elapsedTime">--</span> с</strong>
+        <strong>
+            <span id="elapsedTime">--</span> с
+        </strong>
     </p>
 
     <p>
         Последний прогноз:
-        <strong><span id="timestamp">--</span></strong>
+        <strong>
+            <span id="forecastTimestamp">--</span>
+        </strong>
     </p>
 
     <p id="predictionStatus">
@@ -248,7 +288,7 @@ async function updateForecast() {
 
         const date = new Date(data.timestamp * 1000);
 
-        document.getElementById("timestamp").textContent =
+        document.getElementById("forecastTimestamp").textContent =
             date.toLocaleTimeString("ru-RU");
 
         document.getElementById("error").textContent = "";
@@ -261,11 +301,45 @@ async function updateForecast() {
 }
 
 
+async function updateCalibration() {
+    try {
+        const response = await fetch(
+            "calibration.json?time=" + Date.now()
+        );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+
+        document.getElementById("previousRTh").textContent =
+            data.previous_r_th.toFixed(3);
+
+        document.getElementById("newRTh").textContent =
+            data.new_r_th.toFixed(3);
+
+        document.getElementById("calibrationError").textContent =
+            data.error.toFixed(5);
+
+        const date = new Date(data.timestamp * 1000);
+
+        document.getElementById("calibrationTimestamp").textContent =
+            date.toLocaleTimeString("ru-RU");
+
+    } catch (error) {
+        console.log("Ошибка чтения calibration.json:", error);
+    }
+}
+
+
 updateTelemetry();
 updateForecast();
+updateCalibration();
 
 setInterval(updateTelemetry, 1000);
 setInterval(updateForecast, 5000);
+setInterval(updateCalibration, 5000);
 
 </script>
 
