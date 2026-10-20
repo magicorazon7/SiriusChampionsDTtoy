@@ -2,6 +2,7 @@ import threading
 import time
 import json
 
+from calibrator import Calibrator
 from telemetry_logger import TelemetryLogger
 from modbus_reader import ModbusReader
 from repeat_twin import RepeatTwin
@@ -13,6 +14,9 @@ PREDICTION_INTERVAL = 30
 PREDICTION_WINDOW = 30
 HORIZON_SEC = 900
 
+CALIBRATION_WINDOW = 300
+CALIBRATION_INTERVAL = 360
+
 MODEL_R_TH_INITIAL = 0.11
 OVERHEAT_TEMP = 42.0
 REPEAT_API_KEY = "ваш апи ключ"
@@ -21,6 +25,8 @@ REPEAT_PROJECT_ID = "айди вашего проекта"
 reader = ModbusReader(MODBUS_IP, MODBUS_PORT)
 logger = TelemetryLogger()
 forecast_twin = RepeatTwin(api_key=REPEAT_API_KEY,project_id=REPEAT_PROJECT_ID,interval_sec=HORIZON_SEC)
+calibration_twin = RepeatTwin(api_key=REPEAT_API_KEY,project_id=REPEAT_PROJECT_ID,interval_sec=CALIBRATION_WINDOW)
+calibrator = Calibrator(twin=calibration_twin)
 
 def save_forecast(state,avg_current,final_temperature,final_soc,time_to_overheat,r_th):
     forecast = {
@@ -95,10 +101,23 @@ collector_thread.start()
 
 try:
     last_prediction_time = 0
+    last_calibration_time = 0
+
     current_r_th = MODEL_R_TH_INITIAL
 
     while True:
         elapsed_time = time.monotonic() - start_time
+
+        if elapsed_time - last_calibration_time >= CALIBRATION_INTERVAL:
+            history = logger.last_seconds(CALIBRATION_WINDOW)
+
+            if history:
+                history_duration = history[-1]["timestamp"] - history[0]["timestamp"]
+
+                if history_duration >= CALIBRATION_WINDOW - 5:
+                    calibrator.calculate_mismatch(history, current_r_th)
+
+            last_calibration_time = elapsed_time
 
         if elapsed_time - last_prediction_time >= PREDICTION_INTERVAL:
             state = logger.latest()
