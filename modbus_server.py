@@ -92,7 +92,7 @@ def create_gui():
     slider = tk.Scale(
         root,
         from_=0.07,
-        to=0.15,
+        to=0.19,
         resolution=0.02,
         orient=tk.HORIZONTAL,
         length=350,
